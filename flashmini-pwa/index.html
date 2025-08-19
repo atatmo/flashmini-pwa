@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Flash Mini</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <style>
+    html, body { height: 100%; margin: 0; font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:#0b0b0b; color:#f5f5f7; }
+    .wrap { min-height: 100%; display: grid; place-items: center; padding: 24px; }
+    .card { width: min(720px, 92vw); border-radius: 20px; padding: 24px; background: #111214; box-shadow: 0 8px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05); }
+    h1 { font-size: 20px; font-weight: 700; margin: 0 0 6px; letter-spacing: 0.2px; }
+    .q { font-size: 18px; line-height: 1.4; margin: 10px 0 16px; color: #e5e7eb; }
+    .a { font-size: 17px; line-height: 1.45; padding: 14px; border-radius: 14px; background:#15161a; border: 1px solid #23252a; display:none; }
+    .row { display:flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    button { flex: 1; min-width: 130px; padding: 14px 16px; border: 0; border-radius: 14px; color: #0b0b0b; background: #e6e6e6; font-weight: 700; }
+    button.primary { background: #a9d3ff; }
+    button.good { background: #9cffc3; }
+    button.bad { background: #ffc5c5; }
+    .muted { color:#9aa0a6; font-size: 13px; margin-top: 12px; }
+    .stats { display:flex; gap:10px; font-size:14px; color:#c9cdd1; margin-top: 8px; }
+    .pill { padding: 6px 10px; border-radius: 999px; background:#15161a; border: 1px solid #23252a; }
+    .footer { text-align:center; font-size:12px; color:#889096; margin-top:16px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Flash Mini</h1>
+      <div class="stats">
+        <div class="pill">Karta: <span id="pos">1</span>/<span id="total">0</span></div>
+        <div class="pill">Umiem: <span id="known">0</span></div>
+        <div class="pill">Nie umiem: <span id="unknown">0</span></div>
+      </div>
+      <div class="q" id="q">Ładowanie…</div>
+      <div class="a" id="a"></div>
+      <div class="row">
+        <button id="show" class="primary">Pokaż odpowiedź</button>
+      </div>
+      <div class="row" id="answerBtns" style="display:none">
+        <button id="good" class="good">Umiem</button>
+        <button id="bad" class="bad">Nie umiem</button>
+      </div>
+      <div class="row">
+        <button id="next">Następna</button>
+        <button id="reset">Reset postępów</button>
+      </div>
+      <div class="muted">Dodaj do Ekranu początkowego, by działało jak appka. Offline działa po pierwszym otwarciu.</div>
+      <div class="footer">© Flash Mini</div>
+    </div>
+  </div>
+
+  <script>
+    // Prosta talia (podmień pod siebie)
+    const cards = [
+      { q: "ALP ↑ to marker…?", a: "Cholestazy (kont. z GGT i kliniką)" },
+      { q: "Włoskie: il / la — co to?", a: "Rodzajniki określone m. / ż." },
+      { q: "Cel IOP w jaskrze?", a: "Indywidualny; zwykle ≥20–30% redukcji" }
+    ];
+
+    const $ = (id) => document.getElementById(id);
+    const elQ = $("q"), elA = $("a"), elPos = $("pos"), elTotal = $("total");
+    const elKnown = $("known"), elUnk = $("unknown");
+    const btnShow = $("show"), btnGood = $("good"), btnBad = $("bad");
+    const btnNext = $("next"), btnReset = $("reset");
+    const answerBtns = $("answerBtns");
+
+    let idx = Number(localStorage.getItem("idx") || 0);
+    let known = Number(localStorage.getItem("known") || 0);
+    let unknown = Number(localStorage.getItem("unknown") || 0);
+    let showing = false;
+
+    elTotal.textContent = cards.length;
+    elKnown.textContent = known;
+    elUnk.textContent = unknown;
+
+    function render() {
+      const c = cards[idx % cards.length];
+      elQ.textContent = c.q;
+      elA.textContent = c.a;
+      elPos.textContent = (idx % cards.length) + 1;
+      elA.style.display = showing ? "block" : "none";
+      answerBtns.style.display = showing ? "flex" : "none";
+      btnShow.style.display = showing ? "none" : "block";
+      localStorage.setItem("idx", idx);
+    }
+
+    btnShow.addEventListener("click", () => {
+      showing = true; render();
+    });
+
+    btnGood.addEventListener("click", () => {
+      known++; elKnown.textContent = known;
+      localStorage.setItem("known", known);
+    });
+
+    btnBad.addEventListener("click", () => {
+      unknown++; elUnk.textContent = unknown;
+      localStorage.setItem("unknown", unknown);
+    });
+
+    btnNext.addEventListener("click", () => {
+      idx = (idx + 1) % cards.length;
+      showing = false; render();
+    });
+
+    btnReset.addEventListener("click", () => {
+      known = 0; unknown = 0; localStorage.setItem("known", 0); localStorage.setItem("unknown", 0);
+      elKnown.textContent = 0; elUnk.textContent = 0;
+    });
+
+    // Rejestracja service workera
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("service-worker.js");
+      });
+    }
+
+    render();
+  </script>
+</body>
+</html>
